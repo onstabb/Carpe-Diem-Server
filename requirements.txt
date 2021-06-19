@@ -1,0 +1,7 @@
+aiohttp~=3.7.4.post0
+aiohttp-session~=2.9.0
+mongoengine~=0.23.0
+cryptography~=3.4.7
+Pillow~=8.2.0
+pydantic~=1.8.2
+dnspython==2.1.0
