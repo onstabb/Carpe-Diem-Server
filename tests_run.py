@@ -1,15 +1,10 @@
 import unittest
-import asyncio
 
 from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 from aiohttp import ClientResponse
 
 import config
 from resources import builder
-
-
-
-config._UNITTEST_FLAG = True
 
 
 class AioChatTestCase(AioHTTPTestCase):
@@ -84,10 +79,15 @@ class IndexTestCase(AioChatTestCase):
         response = await self.send_request(**data)
         self.assertIsInstance(self.TOKEN, str)                       # Получили токен
         self.assertIsInstance(response.get("new_password"), str)       # Проверяем ответ от сервера. Должен прийти новый пароль от аккаунта
+
+        data = {"method": "SelectProfile"}
+        response = await self.send_request(**data)
+        self.assertEqual(response.get("status"), "Error")
+
         data = {
             "method": "EditProfile",
-            "name": 'VasyaPup',
-            'age': "19",
+            "name": 'Vladyslav',
+            'age': "22",
             'gender': "male",
             "preferred_gender": "any",
             "description": "I like cats, sushi, music, cinema. Searching for good friends.",

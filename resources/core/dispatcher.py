@@ -26,7 +26,7 @@ class Dispatcher:
         return None
 
     @staticmethod
-    async def __token_validate(request: web.Request) -> typing.Union[Profile, None]:
+    async def __token_validate(request: web.Request, only_filled_profiles: bool = False) -> typing.Union[Profile, None]:
         session = await get_session(request)
         try:
             assert session.new is False
@@ -35,6 +35,8 @@ class Dispatcher:
         except AssertionError:
             raise errors.InvalidToken("Invalid token")
         user = Profile.get_one(id_=user_id)
+        if not user.is_filled and only_filled_profiles:
+            raise errors.FilledProfileOnly("This method can use only filled profiles")
         return user
 
     async def __process_handler(
@@ -75,7 +77,9 @@ class Dispatcher:
 
         handler_obj = self._handlers[method_type]
 
-        user = await self.__token_validate(request=request) if handler_obj.token_validate else None
+        user = await self.__token_validate(
+            request=request, only_filled_profiles=handler_obj.check_profile_filled
+        ) if handler_obj.token_validate else None
 
         method_data = {"method": method_name, "request": request, "user": user}
         async for field_ in reader:
@@ -109,7 +113,9 @@ class Dispatcher:
             raise errors.InvalidMethod("Method doesn't exists")
 
         handler_obj = self._handlers[method_type]
-        user = await self.__token_validate(request=request) if handler_obj.token_validate else None
+        user = await self.__token_validate(
+            request=request, only_filled_profiles=handler_obj.check_profile_filled
+        ) if handler_obj.token_validate else None
 
         json_data.update(user=user)
 
@@ -150,7 +156,7 @@ class Dispatcher:
     ) -> callable:
         def wrapper(callback: types.AsyncHandler):
             handler = types.HandlerFilter(
-                handler=callback, token_validate=validate_token, check_profile_registered=check_profile_filled
+                handler=callback, token_validate=validate_token, check_profile_filled=check_profile_filled
             )
             self._handlers[request_type] = handler
             return callback

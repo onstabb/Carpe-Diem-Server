@@ -46,7 +46,7 @@ class STATUSES:
 class HandlerFilter(_BaseType):
     handler: AsyncHandler
     token_validate: bool
-    check_profile_registered: bool
+    check_profile_filled: bool
 
 
 HandlersDict = typing.Dict[RequestType, HandlerFilter]

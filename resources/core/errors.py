@@ -19,5 +19,9 @@ class InvalidRequestData(BaseServerException):
     pass
 
 
+class FilledProfileOnly(BaseServerException):
+    pass
+
+
 class FileNotSupport(BaseServerException):
     pass

@@ -43,6 +43,12 @@ class Profile(Document):
 
         return user
 
+    @property
+    def is_filled(self) -> bool:
+        if self.photo and self.name:
+            return True
+        return False
+
     def get_all_relationships(self) -> List['Relationship']:
         return Relationship.objects(MQ(profile_1=self) | MQ(profile_2=self))
 
@@ -107,7 +113,7 @@ FAIL - refused
 
 
 class Relationship(Document):
-    profile1 = ReferenceField(document_type=Profile, required=True)
+    profile_1 = ReferenceField(document_type=Profile, required=True)
     profile_2 = ReferenceField(document_type=Profile)
     profile1_state = StringField(
         choices=RELATIONSHIP_STATES.for_profiles, default=RELATIONSHIP_STATES.wait, required=True
@@ -119,15 +125,15 @@ class Relationship(Document):
     status = StringField(choices=RELATIONSHIP_STATES.general, default=RELATIONSHIP_STATES.wait, required=True)
 
     def get_neighbour(self, profile: Profile) -> Profile:
-        if profile == self.profile1:
+        if profile == self.profile_1:
             return self.profile_2
         elif profile == self.profile_2:
-            return self.profile1
+            return self.profile_1
         else:
             raise ValueError("Given profile must be in this relationship!")
 
     def get_profile_status(self, profile: Profile) -> str:
-        if profile == self.profile1:
+        if profile == self.profile_1:
             return self.profile1_state
         elif profile == self.profile_2:
             return self.profile2_state
