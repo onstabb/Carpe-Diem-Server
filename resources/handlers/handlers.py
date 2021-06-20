@@ -99,10 +99,13 @@ async def edit_profile(data: requests.EditProfile):
 @dp.register_handler(request_type=requests.SelectProfile, check_profile_filled=True)
 async def select_profile(data: requests.SelectProfile):
     candidates = data.user.select_candidates(config.DB_SELECTING_AGE_DIFF)
-    distances: list = [
-        (GeoAPI.calculate_distance(data.user.coordinates, profile.coordinates), profile) for profile in candidates
-    ]
-    distance, selected_profile = min(distances, key=lambda kv: kv[0])
+    if len(candidates) > 1:
+        distances: list = [
+            (GeoAPI.calculate_distance(data.user.coordinates, profile.coordinates), profile) for profile in candidates
+        ]
+        distance, selected_profile = min(distances, key=lambda kv: kv[0])
+    else:
+        selected_profile = candidates[0]
     selected_profile: Profile
     if not selected_profile.check_relationship_exists(with_profile=data.user):
         new_relationship: Relationship = Relationship(
@@ -116,7 +119,7 @@ async def select_profile(data: requests.SelectProfile):
         name=selected_profile.name,
         age=selected_profile.age,
         gender=selected_profile.gender,
-        preferred_gender=selected_profile.gender,
+        preferred_gender=selected_profile.preferred_gender,
         description=selected_profile.description,
         city=selected_profile.city,
         photo=selected_profile.photo,

@@ -7,8 +7,9 @@ from .handlers import dp
 from .core.client_session import ClSession
 import config
 
+
 async def _on_startup(app: web.Application):
-    mongoengine.connect(db=config.DB_NAME, host=config.DB_HOST)
+    mongoengine.connect(db=config.DB_NAME, host=config.DB_HOST, tlsAllowInvalidCertificates=True, ssl=True)
 
 
 async def _on_shutdown(app: web.Application):

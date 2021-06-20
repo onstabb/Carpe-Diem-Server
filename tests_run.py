@@ -80,9 +80,9 @@ class IndexTestCase(AioChatTestCase):
         self.assertIsInstance(self.TOKEN, str)                       # Получили токен
         self.assertIsInstance(response.get("new_password"), str)       # Проверяем ответ от сервера. Должен прийти новый пароль от аккаунта
 
-        data = {"method": "SelectProfile"}
-        response = await self.send_request(**data)
-        self.assertEqual(response.get("status"), "Error")
+        # data = {"method": "SelectProfile"}
+        # response = await self.send_request(**data)
+        # self.assertEqual(response.get("status"), "Error")
 
         data = {
             "method": "EditProfile",

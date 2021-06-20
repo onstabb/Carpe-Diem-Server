@@ -1,4 +1,5 @@
 # coding=utf-8
+import os
 SERVER_HOST = 'localhost'
 SERVER_PORT = '80'
 
@@ -14,7 +15,7 @@ FILE_IMAGE_MAX_SIZE = 5 * 1024 * 1024
 FILE_IMAGE_COMPRESSION = 75
 
 DB_NAME = "CarpeDiem"
-DB_HOST = ""
+DB_HOST = os.environ.get("MONGODB_HOST")
 DB_PROF_NAME_MAX_LEN = 40
 DB_PROF_MIN_USER_AGE = 18
 DB_PROF_DESCRIPTION_MAX_LEN = 1024

@@ -71,6 +71,8 @@ class _GeoAPI:
 
     @staticmethod
     def calculate_distance(local_1: GeoPointType, local_2: GeoPointType, max_iter=55, tol=10 ** -12) -> float:
+        if local_1 ==local_2:
+            return 0.0
         """
         Nathan A. Rooy
         2016-SEP-30

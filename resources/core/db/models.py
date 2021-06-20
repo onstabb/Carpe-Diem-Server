@@ -53,17 +53,19 @@ class Profile(Document):
         return Relationship.objects(MQ(profile_1=self) | MQ(profile_2=self))
 
     def check_relationship_exists(self, with_profile: 'Profile') -> bool:
-        if Relationship.objects.get(
+        try:
+            Relationship.objects.get(
                 (MQ(profile_1=self) & MQ(profile_2=with_profile)) | (MQ(profile_2=self) & MQ(profile_1=with_profile))
-        ):
+            )
             return True
-        else:
+        except DoesNotExist:
             return False
 
     def select_candidates(self, age_difference: int = config.DB_SELECTING_AGE_DIFF) -> Set['Profile']:
         user_relations = self.get_all_relationships()
         suitable_candidates = set()
         excluded_candidates_ids = set()
+        excluded_candidates_ids.add(self.id_)
         if user_relations:
             for relationship in user_relations:
                 relationship: Relationship
@@ -81,20 +83,20 @@ class Profile(Document):
         if self.preferred_gender == GENDERS.any:
             do_not_search: str = GENDERS.male if self.gender == GENDERS.female else GENDERS.female
             candidates = self.objects(
-                MQ(age__lte=age_difference+self.age) & MQ(age__gte=age_difference-self.age) &        # age
-                MQ(preferred_gender__ne=do_not_search) &                                            # gender
-                MQ(id___nin=excluded_candidates_ids)                                            # excluded candidates
+                MQ(age__lte=age_difference + self.age) & MQ(age__gte=age_difference - self.age) &  # age
+                MQ(preferred_gender__ne=do_not_search) &  # gender
+                MQ(id___nin=excluded_candidates_ids)  # excluded candidates
             )
         else:
             candidates = self.objects(
-                MQ(age__lte=age_difference+self.age) & MQ(age__gte=age_difference-self.age) &
+                MQ(age__lte=age_difference + self.age) & MQ(age__gte=age_difference - self.age) &
                 MQ(gender=self.preferred_gender) & MQ(preferred_gender__ne=self.preferred_gender) &
                 MQ(id___nin=excluded_candidates_ids)
             )
 
         suitable_candidates = set(candidates)
         if not suitable_candidates:
-            suitable_candidates = self.select_candidates(age_difference=age_difference+config.DB_SELECTING_AGE_DIFF)
+            suitable_candidates = self.select_candidates(age_difference=age_difference + config.DB_SELECTING_AGE_DIFF)
 
         return suitable_candidates
 
