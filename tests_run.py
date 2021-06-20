@@ -1,4 +1,5 @@
 import unittest
+import os
 
 from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 from aiohttp import ClientResponse
@@ -11,7 +12,7 @@ class AioChatTestCase(AioHTTPTestCase):
     """ Base test case for aiochat """
 
     URL = '/API'
-    USER_MOBILE = 380975042095                      # Мобильный телефон тестового юзера
+    USER_MOBILE = int(os.environ.get("TEST_MOBILE"))                      # Мобильный телефон тестового юзера
     TOKEN: str = None                               # Токен получаемый при регистрации в приложении
 
     async def get_application(self):

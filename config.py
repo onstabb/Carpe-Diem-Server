@@ -4,7 +4,7 @@ SERVER_HOST = 'localhost'
 SERVER_PORT = '80'
 
 SESSION_COOKIE_NAME = "CarpeDiem"
-COOKIE_SECRET_KEY = b''
+COOKIE_SECRET_KEY = bytes.fromhex(os.environ.get("FERNET_SESSION_KEY"))
 SMS_API = ""
 
 GEO_API_USER_AGENT = "CarpeDiemServer"
