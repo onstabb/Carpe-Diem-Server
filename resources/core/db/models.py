@@ -52,14 +52,18 @@ class Profile(Document):
     def get_all_relationships(self) -> List['Relationship']:
         return Relationship.objects(MQ(profile_1=self) | MQ(profile_2=self))
 
-    def check_relationship_exists(self, with_profile: 'Profile') -> bool:
+    def get_all_messages(self) -> List['ServerMessage']:
+        return ServerMessage.objects(recipient=self)
+
+    def get_relationship_if_exists(self, profile: Union[int, 'Profile']) -> Union['Relationship', None]:
         try:
-            Relationship.objects.get(
-                (MQ(profile_1=self) & MQ(profile_2=with_profile)) | (MQ(profile_2=self) & MQ(profile_1=with_profile))
+            relationship = Relationship.objects.get(
+                (MQ(profile_1=self) & MQ(profile_2=profile)) | (MQ(profile_2=self) & MQ(profile_1=profile))
             )
-            return True
         except DoesNotExist:
-            return False
+            return None
+
+        return relationship
 
     def select_candidates(self, age_difference: int = config.DB_SELECTING_AGE_DIFF) -> Set['Profile']:
         user_relations = self.get_all_relationships()
@@ -70,7 +74,7 @@ class Profile(Document):
             for relationship in user_relations:
                 relationship: Relationship
 
-                profile_status: str = relationship.get_profile_status(self)
+                profile_status: str = relationship.get_profile_state(self)
                 other_user = relationship.get_neighbour(self)
 
                 if (relationship.status in RELATIONSHIP_STATES.not_for_selecting) or \
@@ -82,13 +86,13 @@ class Profile(Document):
 
         if self.preferred_gender == GENDERS.any:
             do_not_search: str = GENDERS.male if self.gender == GENDERS.female else GENDERS.female
-            candidates = self.objects(
+            candidates = Profile.objects(
                 MQ(age__lte=age_difference + self.age) & MQ(age__gte=age_difference - self.age) &  # age
                 MQ(preferred_gender__ne=do_not_search) &  # gender
                 MQ(id___nin=excluded_candidates_ids)  # excluded candidates
             )
         else:
-            candidates = self.objects(
+            candidates = Profile.objects(
                 MQ(age__lte=age_difference + self.age) & MQ(age__gte=age_difference - self.age) &
                 MQ(gender=self.preferred_gender) & MQ(preferred_gender__ne=self.preferred_gender) &
                 MQ(id___nin=excluded_candidates_ids)
@@ -127,14 +131,24 @@ class Relationship(Document):
     status = StringField(choices=RELATIONSHIP_STATES.general, default=RELATIONSHIP_STATES.wait, required=True)
 
     def get_neighbour(self, profile: Profile) -> Profile:
-        if profile == self.profile_1:
+
+        if profile == self.profile_2:
             return self.profile_2
-        elif profile == self.profile_2:
+        elif profile == self.profile_1:
             return self.profile_1
         else:
             raise ValueError("Given profile must be in this relationship!")
 
-    def get_profile_status(self, profile: Profile) -> str:
+    def set_profile_state(self, profile: Profile, state: str = RELATIONSHIP_STATES.like):
+        if profile == self.profile_1:
+            self.profile1_state = state
+        elif profile == self.profile_2:
+            self.profile2_state = state
+        else:
+            raise ValueError("Given profile must be in this relationship!")
+        self.save()
+
+    def get_profile_state(self, profile: Profile) -> str:
         if profile == self.profile_1:
             return self.profile1_state
         elif profile == self.profile_2:
@@ -143,4 +157,10 @@ class Relationship(Document):
             raise ValueError("Given profile must be in this relationship!")
 
 
-__all__ = [Profile, Relationship]
+class ServerMessage(Document):
+    sender = ReferenceField(Profile)
+    recipient = ReferenceField(Profile, required=True)
+    message = DictField()
+
+
+__all__ = ['Profile', 'Relationship', 'ServerMessage']

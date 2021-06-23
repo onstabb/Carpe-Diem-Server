@@ -1,9 +1,12 @@
 # coding=utf-8
+import pathlib
+
 import mongoengine
 from aiohttp import web
 from aiohttp_session import setup
 
 from .handlers import dp
+from .core.utils import FileManager
 from .core.client_session import ClSession
 import config
 
@@ -15,14 +18,18 @@ async def _on_startup(app: web.Application):
 async def _on_shutdown(app: web.Application):
     mongoengine.disconnect_all()
     await ClSession.close()
+    await dp.websockets_close()
 
 
 async def build_app(**kwargs):
     app = web.Application(loop=kwargs.get('loop'))
     setup(app, dp.cookie_storage)
     app.on_startup.append(_on_startup)
-
-    app.add_routes([web.post('/API', dp.process_request)])
+    app.add_routes([
+        web.post(config.ROUTE_API, dp.process_request),
+        web.get(config.ROUTE_WS, dp.process_ws),
+        web.static('/static', config.CURRENT_PATH+FileManager.filepath[1:], show_index=True)
+    ])
     app.on_cleanup.append(_on_shutdown)
     return app
 

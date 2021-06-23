@@ -1,8 +1,8 @@
 import unittest
 import os
 
-from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
-from aiohttp import ClientResponse
+from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop, TestClient
+from aiohttp import ClientResponse, FormData
 
 import config
 from resources import builder
@@ -24,12 +24,12 @@ class AioChatTestCase(AioHTTPTestCase):
 
             response: ClientResponse = await self.client.post(self.URL, json=kwargs, cookies=cookies)
         else:
-            # file = FormData()
-            # for key, value in kwargs.items():
-            #     if key == "photo":
-            #         file.add_field(name=key, value=value, filename=value.name)
-            #     else:
-            #         file.add_field(name=key, value=str(value))
+            file = FormData()
+            for key, value in kwargs.items():
+                if key == "photo":
+                    file.add_field(name=key, value=value, filename=value.name)
+                else:
+                    file.add_field(name=key, value=str(value))
 
             response: ClientResponse = await self.client.post(self.URL, data=kwargs, cookies=cookies)
 
@@ -65,6 +65,7 @@ class IndexTestCase(AioChatTestCase):
     # Это пример регистрации
     @unittest_run_loop
     async def test_registration(self):
+        self.client: TestClient
         data = {"method": "Login", 'mobile': self.USER_MOBILE}  # Логинимся по своему мобильному номеру
         response = await self.send_request(**data)
         self.assertEqual(response.get("status"), "OK")        # Сервер должен прислать инфу что он отослал смс нам
@@ -80,11 +81,7 @@ class IndexTestCase(AioChatTestCase):
         response = await self.send_request(**data)
         self.assertIsInstance(self.TOKEN, str)                       # Получили токен
         self.assertIsInstance(response.get("new_password"), str)       # Проверяем ответ от сервера. Должен прийти новый пароль от аккаунта
-
-        # data = {"method": "SelectProfile"}
-        # response = await self.send_request(**data)
-        # self.assertEqual(response.get("status"), "Error")
-
+        del code
         data = {
             "method": "EditProfile",
             "name": 'Vladyslav',
@@ -97,6 +94,18 @@ class IndexTestCase(AioChatTestCase):
         }
 
         response = await self.send_request(**data, send_as_json=False, with_token=True)
+        self.assertEqual(response.get("status"), "OK")
+
+        # ws_response = await self.client.ws_connect('/ws', headers={"Cookie": f'{config.SESSION_COOKIE_NAME}="{self.TOKEN}"'})
+        # await ws_response.send_bytes(b'close')
+
+        data = {"method": "SelectProfile"}
+        response = await self.send_request(**data, with_token=True, send_as_json=True)
+        self.assertEqual(response.get("status"), "OK")
+
+        profile_id: int = response.get("id")
+        data = {"method": "EvaluateProfile", "id": profile_id, "evaluation": "like"}
+        response = await self.send_request(**data, with_token=True)
         self.assertEqual(response.get("status"), "OK")
 
 

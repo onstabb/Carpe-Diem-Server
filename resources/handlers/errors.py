@@ -8,3 +8,15 @@ class IncorrectPassword(BaseServerException):
 
 class InvalidSmsCode(BaseServerException):
     pass
+
+
+class InvalidProfile(BaseServerException):
+    pass
+
+
+class ChoiceAreMade(BaseServerException):
+    pass
+
+
+class RelationshipsAreDefined(BaseServerException):
+    pass

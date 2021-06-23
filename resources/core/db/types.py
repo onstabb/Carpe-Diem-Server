@@ -1,3 +1,5 @@
+from typing import Dict
+
 from pydantic import BaseModel
 
 
@@ -22,6 +24,12 @@ class _RelationShipStates(BaseModel):
 
     refused: str = "refused"
     established: str = "established"
+
+    table: Dict[str, Dict[str, str]] = {
+        wait: {wait: wait, like: wait, skip: wait},
+        like: {wait: wait, like: established, skip: refused},
+        skip: {wait: wait, like: refused, skip: refused},
+    }
 
     @property
     def for_profiles(self) -> tuple:

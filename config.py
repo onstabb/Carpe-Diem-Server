@@ -1,11 +1,16 @@
 # coding=utf-8
 import os
+import pathlib
+
 SERVER_HOST = 'localhost'
 SERVER_PORT = '80'
 
 SESSION_COOKIE_NAME = "CarpeDiem"
-COOKIE_SECRET_KEY = bytes.fromhex(os.environ.get("FERNET_SESSION_KEY"))
+COOKIE_SECRET_KEY = bytes.fromhex(os.environ.get("FERNET_SESSION_KEY", '3dc281d0e64ca7cb956e88ce394a7b559710aa623675dd0148530f49cf777423'))
 SMS_API = ""
+
+ROUTE_API = "/API"
+ROUTE_WS = "/ws"
 
 GEO_API_USER_AGENT = "CarpeDiemServer"
 GEO_API_RESP_DATA_LANG = 'pl'
@@ -24,3 +29,5 @@ DB_SELECTING_AGE_DIFF = 2
 SMS_SERVICE_TEST_MODE = True
 SMS_CODE_LEN = 5
 UTILS_GEN_PASSWORD_LENGTH = 8
+
+CURRENT_PATH = str(pathlib.Path().absolute().as_posix())
