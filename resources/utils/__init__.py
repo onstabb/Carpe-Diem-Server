@@ -5,7 +5,7 @@ from .geoAPI import _GeoAPI
 
 import config
 
-SmsService = _SmsCodeService(config.SMS_SERVICE_TEST_MODE)
+SmsService = _SmsCodeService(config.SMS_SERVICE_ON)
 GeoAPI = _GeoAPI()
 
 __all__ = ['SmsService', 'security', 'GeoAPI']

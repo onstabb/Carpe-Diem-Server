@@ -3,8 +3,7 @@ import typing
 
 from aiohttp_session import Session
 from aiohttp import web
-from pydantic import BaseModel
-
+from pydantic import BaseModel, validator, Field
 from .db.models import Profile
 
 
@@ -34,8 +33,12 @@ ResponseObj = typing.TypeVar('ResponseObj', bound=ServerResponse)
 AsyncHandler = typing.Callable[[RequestObj], typing.Awaitable[ResponseObj]]
 
 
-class ServerNotification(_BaseType):
-    type: str
+class ServerMessage(_BaseType):
+    pass
+
+
+ServerMessageObj = typing.TypeVar('ServerMessageObj', bound=ServerMessage)
+ServerMessageType = typing.Type[ServerMessage]
 
 
 class STATUSES:

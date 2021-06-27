@@ -1,5 +1,6 @@
 # coding=utf-8
 import secrets
+import os
 
 from aiohttp import BodyPartReader
 from PIL import Image
@@ -10,6 +11,8 @@ import config
 class FileManager:
 
     filepath = './images/'
+    if not os.path.exists(filepath):
+        os.makedirs(filepath)
 
     support_images = ['jpeg', 'jpg', 'bmp', 'png']
     support_files = support_images

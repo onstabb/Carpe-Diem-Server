@@ -7,6 +7,7 @@ from ..core.db import Profile, GENDERS, Relationship, RELATIONSHIP_STATES
 from ..core.utils import FileManager
 from . import requests
 from . import responses
+from . import messages
 from . import errors
 
 
@@ -93,18 +94,39 @@ async def edit_profile(data: requests.EditProfile):
     user.country = locality.country
     user.save()
 
+    for relation in user.get_all_relationships():
+        relation: Relationship
+        if relation.status == RELATIONSHIP_STATES.established:
+            other_user: Profile = relation.get_neighbour(data.user)
+            message: messages.ProfileEdited = messages.ProfileEdited(
+                id=other_user.id_,
+                name=other_user.name,
+                age=other_user.age,
+                gender=other_user.gender,
+                preferred_gender=other_user.preferred_gender,
+                description=other_user.description,
+                city=other_user.city,
+                photo=other_user.photo,
+            )
+            await dp.send_ws_message(sender=data.user, data=message, profile=other_user)
+        else:
+            relation.delete()
+
     return responses.ServerResponse(status=STATUSES.OK)
 
 
 @dp.register_handler(request_type=requests.SelectProfile, check_profile_filled=True)
 async def select_profile(data: requests.SelectProfile):
     candidates = data.user.select_candidates(config.DB_SELECTING_AGE_DIFF)
-    distances: list = [
-        (GeoAPI.calculate_distance(data.user.coordinates, profile.coordinates), profile) for profile in candidates
-    ]
-    distance, selected_profile = min(distances, key=lambda kv: kv[0])
+    if len(candidates) > 1:
+        distances: list = [
+            (GeoAPI.calculate_distance(data.user.coordinates, profile.coordinates), profile) for profile in candidates
+        ]
+        distance, selected_profile = min(distances, key=lambda kv: kv[0])
+    else:
+        selected_profile = candidates.pop()
     selected_profile: Profile
-    if not selected_profile.check_relationship_exists(with_profile=data.user):
+    if not selected_profile.get_relationship_if_exists(profile=data.user):
         new_relationship: Relationship = Relationship(
             profile_1=data.user,
             profile_2=selected_profile,
@@ -113,11 +135,45 @@ async def select_profile(data: requests.SelectProfile):
 
     return responses.SelectedProfile(
         status=STATUSES.OK,
+        id=selected_profile.id_,
         name=selected_profile.name,
         age=selected_profile.age,
         gender=selected_profile.gender,
-        preferred_gender=selected_profile.gender,
+        preferred_gender=selected_profile.preferred_gender,
         description=selected_profile.description,
         city=selected_profile.city,
         photo=selected_profile.photo,
     )
+
+
+@dp.register_handler(request_type=requests.EvaluateProfile, check_profile_filled=True)
+async def evaluate_profile(data: requests.EvaluateProfile):
+    relationship: Relationship = data.user.get_relationship_if_exists(data.id)
+    if not relationship:
+        raise errors.InvalidProfile("Profile is invalid")
+
+    if data.evaluation not in (RELATIONSHIP_STATES.like, RELATIONSHIP_STATES.skip):
+        raise errors.InvalidRequestData("You can like or pass profile")
+
+    if relationship.status != RELATIONSHIP_STATES.wait:
+        raise errors.RelationshipsAreDefined("Relationships between profiles are defined")
+
+    state1: str = relationship.get_profile_state(data.user)
+    if state1 != RELATIONSHIP_STATES.wait:
+        raise errors.ChoiceAreMade("The choice has already been made")
+
+    other_user: Profile = relationship.get_neighbour(data.user)
+    state2: str = relationship.get_profile_state(other_user)
+
+    relation_status: str = RELATIONSHIP_STATES.table[data.evaluation][state2]
+    if relation_status == RELATIONSHIP_STATES.wait and data.evaluation == RELATIONSHIP_STATES.like:
+        await dp.send_ws_message(other_user, messages.LikeNotification(), sender=data.user)
+    elif relation_status == RELATIONSHIP_STATES.established:
+        await dp.send_ws_message(other_user, messages.MutualSympathy(mobile_phone=other_user.mobile), sender=data.user)
+        await dp.send_ws_message(data.user, messages.MutualSympathy(mobile_phone=data.user.mobile), sender=other_user)
+
+    relationship.set_profile_state(data.user, state=data.evaluation)
+    relationship.status = relation_status
+    relationship.save()
+
+    return responses.ServerResponse(status=STATUSES.OK)

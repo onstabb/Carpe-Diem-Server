@@ -44,3 +44,8 @@ class EditProfile(ClientRequest):
 
 class SelectProfile(ClientRequest):
     pass
+
+
+class EvaluateProfile(ClientRequest):
+    id: int
+    evaluation: str

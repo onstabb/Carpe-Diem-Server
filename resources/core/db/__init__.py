@@ -1,2 +1,2 @@
-from .models import Profile, Relationship
+from .models import *
 from .types import GENDERS, RELATIONSHIP_STATES

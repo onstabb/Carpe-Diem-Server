@@ -7,6 +7,7 @@ class NewUserRegistered(ServerResponse):
 
 
 class SelectedProfile(ServerResponse):
+    id: int
     name: str
     age: int
     gender: str

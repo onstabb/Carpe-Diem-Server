@@ -5,7 +5,7 @@ from aiohttp import web, WSMessage, WSMsgType, MultipartReader
 from aiohttp_session import get_session, cookie_storage, new_session
 from pydantic import ValidationError
 
-from .db.models import Profile
+from .db import Profile, ServerMessage
 from . import errors
 from . import types
 from .utils import FileManager
@@ -18,6 +18,11 @@ class Dispatcher:
 
     def __init__(self, encrypted_cookie_storage: cookie_storage.EncryptedCookieStorage):
         self.cookie_storage = encrypted_cookie_storage
+        self._websockets: typing.Dict[int, web.WebSocketResponse] = {}
+
+    async def websockets_close(self):
+        for ws in self._websockets.values():
+            await ws.close()
 
     def __get_method_type(self, method_name: typing.AnyStr) -> typing.Union[types.RequestType, None]:
         for type_ in self._handlers:
@@ -26,7 +31,9 @@ class Dispatcher:
         return None
 
     @staticmethod
-    async def __token_validate(request: web.Request, only_filled_profiles: bool = False) -> typing.Union[Profile, None]:
+    async def __get_user_from_session(
+            request: web.Request, only_filled_profile: bool = False
+    ) -> typing.Union[Profile, None]:
         session = await get_session(request)
         try:
             assert session.new is False
@@ -35,9 +42,21 @@ class Dispatcher:
         except AssertionError:
             raise errors.InvalidToken("Invalid token")
         user = Profile.get_one(id_=user_id)
-        if not user.is_filled and only_filled_profiles:
+        if not user.is_filled and only_filled_profile:
             raise errors.FilledProfileOnly("This method can use only filled profiles")
+
         return user
+
+    @staticmethod
+    async def user_start_session(profile: Profile, request: web.Request):
+        session = await new_session(request)
+        session.update(user_id=profile.id_)
+        return session
+
+    async def __check_user_messages(self, user: Profile):
+        for message in user.get_all_messages():
+            data = ServerMessage(**message.message)
+            await self.send_ws_message(user, sender=message.sender, data=data)
 
     async def __process_handler(
             self, handler: types.HandlerFilter, request_type: types.RequestType, data: dict
@@ -77,8 +96,8 @@ class Dispatcher:
 
         handler_obj = self._handlers[method_type]
 
-        user = await self.__token_validate(
-            request=request, only_filled_profiles=handler_obj.check_profile_filled
+        user = await self.__get_user_from_session(
+            request=request, only_filled_profile=handler_obj.check_profile_filled
         ) if handler_obj.token_validate else None
 
         method_data = {"method": method_name, "request": request, "user": user}
@@ -113,22 +132,43 @@ class Dispatcher:
             raise errors.InvalidMethod("Method doesn't exists")
 
         handler_obj = self._handlers[method_type]
-        user = await self.__token_validate(
-            request=request, only_filled_profiles=handler_obj.check_profile_filled
+        user = await self.__get_user_from_session(
+            request=request, only_filled_profile=handler_obj.check_profile_filled
         ) if handler_obj.token_validate else None
 
         json_data.update(user=user)
 
         return await self.__process_handler(handler=handler_obj, request_type=method_type, data=json_data)
 
-    async def _ws_send(self, ws: web.WebSocketResponse, data: dict):
-        await ws.send_json(data)
+    async def send_ws_message(
+            self, profile: Profile, data: types.ServerMessageObj, sender: typing.Optional[Profile] = None
+    ):
+        ws: typing.Union[web.WebSocketResponse, None] = self._websockets.get(profile.id_)
+        try:
+            assert ws is not None
+            prepared_data = {"type": data.__class__.__name__, "from": sender.id_ if sender else 0}
+            prepared_data.update(data.dict())
+            await ws.send_json(prepared_data)
+        except (AssertionError, ):
+            self._websockets.pop(profile.id_, None)
+            message: ServerMessage = ServerMessage(sender=sender, recipient=profile, message=data.dict())
+            message.save()
 
-    @staticmethod
-    async def user_start_session(profile: Profile, request: web.Request):
-        session = await new_session(request)
-        session.update(user_id=profile.id_)
-        return session
+    async def process_ws(self, request: web.Request):
+        ws: web.WebSocketResponse = web.WebSocketResponse()
+        await ws.prepare(request)
+        try:
+            user: Profile = await self.__get_user_from_session(request, only_filled_profile=True)
+            await self.__check_user_messages(user)
+            self._websockets[user.id_] = ws
+            async for msg in ws:
+                msg: WSMessage
+                if msg.type == WSMsgType.ERROR or msg.data == 'close':
+                    await ws.close()
+        except Exception as e:
+            self.log.exception(e)
+        finally:
+            return ws
 
     async def process_request(self, request: web.Request):
         try:

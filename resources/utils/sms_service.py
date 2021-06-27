@@ -11,9 +11,9 @@ _base_param = {"api_id": config.SMS_API}
 
 class _SmsCodeService:
 
-    def __init__(self, test_mode: bool = False):
+    def __init__(self, is_not_test: bool = False):
         self._storage: typing.Dict[int, int] = {}   # code: mobile
-        self._test = test_mode
+        self._is_not_test = is_not_test
 
     @staticmethod
     def __generate_code(length: int = config.SMS_CODE_LEN) -> int:
@@ -44,7 +44,7 @@ class _SmsCodeService:
     async def send_sms_code(self, to_mobile: int, ip: typing.Optional[IPv4Address] = None):
         code = await self._accept_code(to_mobile)
         msg = f'Carpe Diem Service. Your code: {code}'
-        if self._test:
+        if not self._is_not_test:
             with open('code', 'w') as file_code:
                 file_code.write(str(code))
         else:
